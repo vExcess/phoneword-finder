@@ -11,10 +11,10 @@ class WorkerConfig {
 class WorkerMessage {
     int id;
     List<String>? requestData;
-    String? responseData;
+    List<String>? responseData;
     WorkerMessage(this.id, {
         List<String>? this.requestData,
-        String? this.responseData,
+        List<String>? this.responseData,
     });
 }
 

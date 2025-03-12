@@ -36,7 +36,7 @@ final random = Math.Random();
 
 
 // id, response
-Map<int, String?> pending = {};
+Map<int, List<String>?> pending = {};
 
 class FilterWorker {
     late SendPort sendPort;
@@ -100,7 +100,6 @@ class FilterWorker {
 
 Future<void> findPhonewords({
     required String inputFileName,
-    required String outputFileName,
     required String dictionaryFileName,
     int wordLengthThreshold=3
 }) async {
@@ -121,8 +120,11 @@ Future<void> findPhonewords({
         })
         .toList();
 
-    File output = File(outputFileName);
+    File output = File("output.txt");
     output.writeAsStringSync("Scroll to end to find list of all words discovered.\n\n");
+
+    File outputByWord = File("output-by-word.txt");
+    outputByWord.writeAsStringSync("");
 
     // spawn workers
     List<FilterWorker> workers = [];
@@ -141,6 +143,8 @@ Future<void> findPhonewords({
         workers[i % coreCount].processNumber(number);
     }
 
+    Map<String, List<String>> wordNumberMap = {};
+
     while (true) {
         // print("Polling... ${pending.values.length}");
         await wait(4);
@@ -149,10 +153,26 @@ Future<void> findPhonewords({
             foundResponse = false;
             for (int id in pending.keys) {
                 if (pending[id] != null) {
-                    String chunk = pending[id]!;
+                    List<String> chunk = pending[id]!;
 
                     if (chunk.length > 0) {
-                        output.writeAsStringSync(chunk, mode: FileMode.append);
+                        var numbersByNumber = [];
+
+                        chunk.sublist(1).forEach((String number) {
+                            List<String> split = number.split(',');
+                            String num = split[0];
+                            String wrd = split[1];
+                            numbersByNumber.add(num);
+                            if (wordNumberMap[wrd] == null) {
+                                wordNumberMap[wrd] = [];
+                            }
+                            wordNumberMap[wrd]!.add(num);
+                        });
+
+                        output.writeAsStringSync(
+                            "----- ${chunk[0]} -----\n${numbersByNumber.join("\n")}\n\n", 
+                            mode: FileMode.append
+                        );
                     }
 
                     stdout.write("\r\x1b[K");
@@ -168,6 +188,14 @@ Future<void> findPhonewords({
                             for (String word in wordsFound) {
                                 allWordsFound.add(word);
                             }
+                        }
+
+                        for (String word in wordNumberMap.keys) {
+                            List<String> numbersByWord = wordNumberMap[word]!;
+                            outputByWord.writeAsStringSync(
+                                "----- ${word} -----\n${numbersByWord.join("\n")}\n\n", 
+                                mode: FileMode.append
+                            );
                         }
 
                         // print all words found
@@ -204,9 +232,10 @@ void main(List<String> args) async {
     await findPhonewords(
         dictionaryFileName: DICTIONARY_FILE_NAME,
         inputFileName: args[0],
-        outputFileName: args[1],
         wordLengthThreshold: WORD_LENGTH_THRESHOLD
     );
+
+    
 
     int endTime = DateTime.now().millisecondsSinceEpoch;
     print("\nFinished in ${(endTime - startTime) / 1000}s");

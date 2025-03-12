@@ -74,7 +74,7 @@ void isolate_main(SendPort port) {
                         String hasKey = "$slice $start";
                         if (!filteredHasMap.containsKey(hasKey)) {
                             filteredHasMap[hasKey] = true;
-                            filtered.add(formatPermutation(permutation.substring(0, start), slice, permutation.substring(end)));
+                            filtered.add(formatPermutation(permutation.substring(0, start), slice, permutation.substring(end)) + ",$slice");
                             wordsFound.add(slice);
                         }
                     }
@@ -111,9 +111,9 @@ void isolate_main(SendPort port) {
             final filtered = filterPermutations(permutations, config.wordLengthThreshold, wordsFound);
 
             if (filtered.length > 0) {
-                port.send(WorkerMessage(message.id, responseData: "----- ${formatNumber(number)} -----\n${filtered.join("\n")}\n\n"));
+                port.send(WorkerMessage(message.id, responseData: [formatNumber(number), ...filtered]));
             } else {
-                port.send(WorkerMessage(message.id, responseData: ""));
+                port.send(WorkerMessage(message.id, responseData: []));
             }
         } else if (message is int) {
             port.send(wordsFound);
